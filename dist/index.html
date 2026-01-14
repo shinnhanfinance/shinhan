@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EKYC VNPT - Giao diện tùy chỉnh</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@100;300;400&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.4/lottie.min.js"></script>
+  <script async id="oval_model" src="https://ekyc-web.vnpt.vn/lib/VNPTBrowserSDKAppV3.1.2.js"></script>
+  <script src="https://ekyc-web.vnpt.vn/lib/jsQR.js"></script>
+  <style>
+    /* Thêm CSS để định vị logo thương hiệu của bạn */
+    .brand-logo {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      width: 76px;  /* Gấp đôi kích thước từ config Android (38*2) */
+      height: 24px; /* Gấp đôi kích thước từ config Android (12*2) */
+      z-index: 1000; /* Đảm bảo logo luôn nổi lên trên */
+    }
+  </style>
+</head>
+
+<body style="background-color: #122F41;"> <img src="dist/configs/logo.png" alt="Brand Logo" class="brand-logo" />
+
+  <div id="ekyc_sdk_intergrated"></div>
+  
+  <script>
+    // Tải tệp SDK cục bộ của bạn (đảm bảo tên file khớp)
+    let vnpt_ekyc_sdk = document.createElement("script");
+    vnpt_ekyc_sdk.id = "vnpt_ekyc_sdk";
+    vnpt_ekyc_sdk.src = "./web-sdk-version-3.0.0.0.js"; // SDK v3.0.0.0
+    document.head.appendChild(vnpt_ekyc_sdk);
+
+    vnpt_ekyc_sdk.onload = async function () {
+      // Khởi tạo đối tượng cấu hình
+      var dataConfig = {
+        // --- PHẦN XÁC THỰC (BẮT BUỘC THAY BẰNG KEY MỚI) ---
+        BACKEND_URL: "https://api.idg.vnpt.vn",
+        TOKEN_KEY:   "MFwwDQYJKoZIhvcNAQEBBQADSwAwSAJBAMxOJVBGwpOeSFmfi0E02+EnXEoD3vWehNHUUSr1ob9I55gP132hfViwRxnYMRL/fZbOzBLGoHElIl2m87ebQFkCAwEAAQ==",
+        TOKEN_ID:    "384b4517-af4e-391c-e063-62199f0a23e6",
+        ACCESS_TOKEN: "bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0cmFuc2FjdGlvbl9pZCI6ImEyMzM1Njc3LWE1ZmMtNGVlNy05MjcxLTk1ZmVmY2M2OWM3MiIsInN1YiI6ImM2MjBhYzk1LTUwYjgtMTFmMC05M2ZjLTMxNGYzZmU2Y2YxMSIsImF1ZCI6WyJyZXN0c2VydmljZSJdLCJ1c2VyX25hbWUiOiJkdXllbmR1eWVuZHV5ZW4zMThAZ21haWwuY29tIiwic2NvcGUiOlsicmVhZCJdLCJpc3MiOiJodHRwczovL2xvY2FsaG9zdCIsIm5hbWUiOiJkdXllbmR1eWVuZHV5ZW4zMThAZ21haWwuY29tIiwiZXhwIjoxNzUxMDgyOTY3LCJ1dWlkX2FjY291bnQiOiJjNjIwYWM5NS01MGI4LTExZjAtOTNmYy0zMTRmM2ZlNmNmMTEiLCJhdXRob3JpdGllcyI6WyJVU0VSIl0sImp0aSI6ImUwY2I1ZDcwLTU5YjEtNGMzMS1iODgzLTgyNjlkYWM3N2Q3OCIsImNsaWVudF9pZCI6ImNsaWVudGFwcCJ9.wtBVaLS4w0q1oy5qRUkE5GtWcDhV3jt_NLYd1maLBR7qVYgXVuX0gjypAmheCYUJuZ7EG6CD0AJuCs6jt2uy85_BBNH0aRoIoOUhiZ91WRsfzSFOmEXLPCwfBjcWXu8Oi7ojhXGQYWmuCaRarL8dkupsBdPmTKmaVTK4fQLWY9NlUQ8p1Z7cMNITUarV7Jk70pyXbu4t9Z-_sAfPYjC4E8F9aDDkXimXZJaMByFyRdYivVsTjEKY57wGIDYQWZkq-7tHCKgyARIMAQ6uslayJcs-_G3vGH_iS_GlYCoZnJbFaB9sKMg2a-0szZkIHTOhWjE7gJpEbF_Y6cOxLnDXiA",
+
+        // --- PHẦN CẤU HÌNH CHỨC NĂNG ---
+        PARRENT_ID: "ekyc_sdk_intergrated",
+        FLOW_TYPE: "DOCUMENT",
+        LANGUAGE: "vi",
+        LIST_TYPE_DOCUMENT: [-1, 4, 5, 6, 7],
+        SHOW_TRADEMARK: false, // Tắt logo mặc định của VNPT để dùng logo của bạn
+
+        // --- PHẦN CẤU HÌNH GIAO DIỆN (ĐÃ DỊCH TỪ FILE CONFIG CỦA BẠN) ---
+        LIST_CHOOSE_STYLE: {
+          background: "#122F41", // colorEKYCBackgroundMain
+          text_color: "#FFFFFF", // colorEKYCTextContentMain
+          item_active_color: "#18D696", // colorEKYCAnimation
+          background_icon: "#18D696", // colorEKYCAnimation
+          start_button_background: "#18D696", // colorEKYCBackgroundButton
+          start_button_color: "#142730", // colorEKYCTextButtonAndFeedbackBar
+        },
+        CAPTURE_IMAGE_STYLE: {
+          big_title_color: "#FFFFFF", // colorEKYCTextContentMain
+          description1_color: "#FFFFFF", // colorEKYCTextContentMain
+          capture_btn_background: "#FFFFFF", // colorEKYCButtonCapture
+          capture_btn_color: "#142730", // colorEKYCTextButtonAndFeedbackBar
+          recapture_btn_background: "#D9D9D9", // colorEKYCLinePath
+          recapture_btn_color: "#142730", // colorEKYCTextButtonAndFeedbackBar
+          nextstep_btn_background: "#18D696", // colorEKYCBackgroundButton
+          nextstep_btn_color: "#142730", // colorEKYCTextButtonAndFeedbackBar
+        },
+        MODAL_DOC_STYLE: { // Style cho popup hướng dẫn
+          background: "#FFFFFF", // colorEKYCBackgroundPopup
+          text_color: "#142730"  // colorEKYCTextContentPopup
+        },
+      };
+
+      // Hàm callback sau khi kết thúc luồng
+      const CALL_BACK_END_FLOW = async (result) => {
+        console.log('Kết quả cuối cùng:', result);
+      };
+
+      // Gán hàm callback vào đối tượng cấu hình
+      dataConfig.CALL_BACK_END_FLOW = CALL_BACK_END_FLOW;
+
+      // Khởi chạy SDK
+      if (window.SDK) {
+        window.SDK.launch(dataConfig);
+      } else {
+        console.error("Lỗi: window.SDK không tồn tại.");
+      }
+    };
+  </script>
+</body>
+</html>
