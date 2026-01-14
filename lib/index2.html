@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>VNPT eKYC - Xác thực giấy tờ & Khuôn mặt</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&family=Open+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="https://ekyc.vnpt.vn/admin-dashboard/assets/img/favicon.png">
+    
+    <!-- Core JS Libraries -->
+    <script src="https://vaytieudung.github.io/shinhanbank/assets/js/opencv.js"></script>
+    <script src="https://vaytieudung.github.io/shinhanbank/assets/js/tesseract.min.js"></script>
+    <script src="https://vaytieudung.github.io/shinhanbank/assets/js/face-api.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+
+    <style>
+        :root {
+            --primary-color: #18D696;
+            --secondary-color: #122F41;
+            --text-color-main: #FFFFFF;
+            --text-color-dark: #142730;
+            --border-line-color: rgba(225, 225, 225, 0.15);
+            --capture-bg-color: #122F41;
+            --border-oval-color: #FFFFFF;
+            --popup-background-color: #FFFFFF;
+            --error-color: #D9534F;
+            --border-radius: 10px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--secondary-color);
+            color: var(--text-color-main);
+            line-height: 1.5;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        .hidden { display: none !important; }
+        .app-header {
+            background: var(--secondary-color);
+            padding: 0.75rem 1rem;
+            text-align: left;
+            position: sticky;
+            top: 0;
+            z-index: 1010;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            height: 3.5rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .app-header .header-left { display: flex; align-items: center; }
+        .app-header .header-left img, .app-header .header-left span {
+            display: none;
+        }
+        .back-button { font-size: 1.25rem; color: var(--text-color-main); cursor: pointer; padding-right: 1rem; line-height: 1; margin-right: auto; }
+        .language-select { width: 8rem; background-color: #F9FAFB; border: 1px solid #F5F5F5; color: #111127; font-size: 0.875rem; border-radius: 0.5rem; padding: 0.5rem; height: auto; }
+        .main-content-wrapper {
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            background-image: linear-gradient(180deg, var(--secondary-color) 70%, rgba(15, 43, 59, 0.8)), url('https://ekyc.vnpt.vn/admin-dashboard/89a76675bbd6fa410418.svg');
+            background-repeat: no-repeat;
+            background-size: cover;
+            background-position: center bottom;
+        }
+        .content-card { background: transparent; padding: 0; border-radius: 0; margin: 0 auto; max-width: 28rem; width: 100%; }
+        .document-item { display: flex; align-items: center; justify-content: space-between; padding: 1rem; border-bottom: 1px solid var(--border-line-color); cursor: pointer; transition: var(--transition); position: relative; }
+        .document-item:last-child { border-bottom: none; }
+        .document-item:hover, .document-item:focus { background-color: rgba(255, 255, 255, 0.05); outline: 2px solid var(--primary-color); }
+        .document-item:hover .document-name, .document-item:hover .arrow-icon svg,
+        .document-item:focus .document-name, .document-item:focus .arrow-icon svg { color: var(--primary-color) !important; }
+        .document-icon-wrapper { width: 4rem; height: 4rem; border-radius: 0.5rem; background-color: var(--primary-color); display: flex; justify-content: center; align-items: center; flex-shrink: 0; margin-right: 1rem; }
+        .document-name { flex-grow: 1; color: var(--text-color-main); font-weight: 500; font-size: 1rem; margin-left: 0.5rem; }
+        .arrow-icon { flex-shrink: 0; margin-left: 1rem; }
+        .arrow-icon svg { color: var(--text-color-main); transition: color 0.3s ease; }
+        
+        .popup-card {
+            background-color: var(--popup-background-color);
+            padding: clamp(20px, 5vw, 40px);
+            border-radius: var(--border-radius);
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            margin: 0 auto;
+            max-width: 28rem;
+            text-align: center;
+            color: var(--text-color-dark);
+            position: relative;
+        }
+        .popup-card h3 { color: var(--text-color-dark); font-weight: 700; font-size: 1.5rem; line-height: 2rem; margin-bottom: 1rem; }
+        .popup-card .instruction-text { color: #757575; font-size: 1rem; margin-bottom: 1.5rem; }
+        
+        .capture-box, .confirm-box { margin-top: 1.5rem; width: 100%; }
+        .capture-content-state { display: none; flex-direction: column; align-items: center; justify-content: center; width: 100%; }
+        .capture-section.state-capturing .capture-content-state[data-state="capturing"], .capture-section.state-loading .capture-content-state[data-state="loading"], .capture-section.state-success .capture-content-state[data-state="success"], .capture-section.state-error .capture-content-state[data-state="error"] { display: flex; }
+        
+        .camera-frame { background: var(--capture-bg-color); border-radius: var(--border-radius); overflow: hidden; width: 100%; max-width: 430px; aspect-ratio: 1.586 / 1; margin: 1rem auto; position: relative; }
+        .face-camera-frame { aspect-ratio: 1 / 1; border-radius: 50%; }
+
+        .camera-frame video, .camera-frame canvas { display: block; width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; }
+        .face-camera-frame video { transform: scaleX(-1); }
+
+        .camera-frame .overlay-focus { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; pointer-events: none; }
+        .camera-frame .overlay-focus .id-card-outline { border: 3px solid var(--border-oval-color); box-shadow: 0 0 0 9999px rgba(18, 47, 65, 0.8); border-radius: var(--border-radius); width: 85%; height: 85%; position: relative; overflow: hidden; transition: border-color 0.3s ease; }
+        #lottie-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+
+        .id-card-outline::before, .id-card-outline::after, .id-card-outline > span::before, .id-card-outline > span::after { content: ''; position: absolute; width: 25px; height: 25px; border-color: var(--border-oval-color); border-width: 4px; border-style: solid; border-radius: 6px; display: block; transition: border-color 0.3s ease; }
+        .id-card-outline::before { top: -2px; left: -2px; border-right: none; border-bottom: none; }
+        .id-card-outline::after { top: -2px; right: -2px; border-left: none; border-bottom: none; }
+        .id-card-outline > span::before { bottom: -2px; left: -2px; border-right: none; border-top: none; }
+        .id-card-outline > span::after { bottom: -2px; right: -2px; border-left: none; border-top: none; }
+        .camera-frame.ready-to-capture .id-card-outline, .camera-frame.ready-to-capture .id-card-outline::before, .camera-frame.ready-to-capture .id-card-outline::after, .camera-frame.ready-to-capture .id-card-outline > span::before, .camera-frame.ready-to-capture .id-card-outline > span::after { border-color: var(--primary-color); }
+        .camera-frame.blink-once { animation: blink 0.5s 1; }
+        @keyframes blink { 50% { box-shadow: 0 0 20px var(--primary-color); } }
+        .status-message { background-color: rgba(24, 214, 150, 0.2); color: var(--primary-color); font-weight: 500; border-radius: 6px; display: block; margin-top: 1.5rem; font-size: 0.875rem; line-height: 1.25rem; padding: 0.75rem 1rem; width: 90%; box-sizing: border-box; text-align: center; }
+        .error-message { background-color: #F8D7DA; color: var(--error-color); border: 1px solid #F5C6CB; border-radius: 6px; display: none; margin-top: 1rem; font-size: 0.875rem; padding: 0.75rem 1rem; width: 90%; text-align: center; }
+        .error-message.visible { display: block; }
+        .loader { width: 3rem; height: 3rem; border: 0.25rem solid rgba(0,0,0,.1); border-top-color: var(--primary-color); margin: 1.5rem auto; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        .button-group { margin-top: 2rem; gap: 0.75rem; display: flex; flex-wrap: wrap; justify-content: center; width: 100%; }
+        .btn { border-radius: var(--border-radius); padding: 1rem 3rem; font-weight: 700; font-size: 1.125rem; transition: var(--transition); border: none; flex-grow: 1; max-width: 200px; }
+        .btn-primary { background-color: var(--primary-color); color: var(--text-color-main); text-transform: uppercase; width: 100%; }
+        .btn-primary:hover { background-color: #16C185; color: var(--text-color-main); }
+        .btn-primary:disabled { background-color: #B0BEC5; color: white; cursor: not-allowed; }
+        .btn-primary.is-loading { position: relative; color: transparent !important; }
+        .btn-primary.is-loading .spinner-border { display: inline-block; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); color: var(--text-color-dark); }
+        .btn-secondary { background-color: #E8E8E8; color: var(--text-color-dark); }
+        .btn-secondary:hover { background-color: #D6D6D6; color: var(--text-color-dark); }
+        .confirm-previews { display: flex; flex-direction: row; flex-wrap: wrap; gap: 1.5rem; margin-top: 2rem; justify-content: center; }
+        .confirm-previews img { width: 100%; max-width: 150px; height: auto; border: 1px solid #F5F5F5; border-radius: var(--border-radius); object-fit: contain; cursor: pointer; }
+        .ai-review-section { background-color: #f8f9fa; padding: clamp(20px, 5vw, 40px); border-radius: var(--border-radius); box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); margin-top: 1.5rem; text-align: left; color: var(--text-color-dark); width: 100%; box-sizing: border-box; }
+        .ai-review-section h4 { color: var(--primary-color); font-weight: 700; margin-bottom: 1rem; }
+        .ai-review-section p, .ai-review-section ul { margin-bottom: 0.5rem; color: #757575; }
+        .ai-review-section strong { color: var(--text-color-dark); }
+        .ai-review-section .spinner-border { margin-right: 0.5rem; }
+        .ai-review-section ul { list-style: disc; padding-left: 20px; }
+        .ai-review-section ul li { margin-bottom: 5px; }
+        .fullscreen-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.9); display: flex; justify-content: center; align-items: center; z-index: 10000; cursor: zoom-out; }
+        .fullscreen-modal img { max-width: 90%; max-height: 90%; object-fit: contain; border-radius: var(--border-radius); }
+        
+        #captureTitle { color: var(--primary-color); }
+        .btn-white { background-color: #FFFFFF; color: var(--text-color-dark); }
+        .btn-white:hover { background-color: #F5F5F5; }
+        .close-button { position: absolute; top: 10px; right: 10px; font-size: 1.25rem; color: #6B7280; cursor: pointer; }
+        .capture-steps { display: flex; justify-content: space-around; margin-bottom: 20px; }
+        .capture-steps .step { text-align: center; }
+        .capture-steps .step img { width: 120px; height: 75px; border: 2px dashed var(--primary-color); border-radius: 8px; object-fit: cover; }
+        .capture-steps .step p { margin-top: 10px; font-weight: 500; color: var(--text-color-dark); }
+        .pre-capture-guide-section ul { list-style: disc outside; padding-left: 20px; }
+        .pre-capture-guide-section li { margin: 10px 0; font-size: 14px; color: var(--text-color-dark); align-items: flex-start; }
+        .guide-examples .image-wrapper { position: relative; display: inline-block; }
+        .guide-examples .overlay-x { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--error-color); font-size: 24px; font-weight: bold; text-shadow: 0 0 3px white; }
+        .guide-example.incorrect img { border-color: transparent; }
+        .guide-example p { font-size: 12px; font-weight: 500; }
+
+        @media (max-width: 640px) {
+            .language-select { margin-left: auto; width: 7rem; }
+            .document-item { flex-direction: column; align-items: flex-start; }
+            .document-icon-wrapper { margin-bottom: 0.5rem; margin-right: 0; }
+            .document-name { margin-left: 0; margin-top: 0.25rem; }
+            .arrow-icon { margin-left: auto; position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); }
+            .btn { padding: 0.75rem 1.5rem; font-size: 1rem; max-width: none; }
+            .button-group { flex-direction: column; }
+            .confirm-previews img { max-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-left">
+            <i id="backButton" class="fas fa-arrow-left back-button hidden" aria-label="Quay lại"></i>
+            <img src="https://ekyc.vnpt.vn/admin-dashboard/assets/img/logo_ekyc.svg" alt="VNPT Logo">
+            <span>eKYC VNPT</span>
+        </div>
+        <select id="languageSelect" class="language-select" aria-label="Chọn ngôn ngữ">
+            <option value="vi" selected>Tiếng Việt</option>
+            <option value="en">English</option>
+        </select>
+    </header>
+
+    <main class="main-content-wrapper">
+        <div class="content-card">
+            <!-- Screen 1: Document Selection -->
+            <div id="guideSection">
+                <div class="guide-box popup-card">
+                    <h3 data-i18n="doc_auth">Xác thực giấy tờ</h3>
+                    <p data-i18n="choose_doc">Chọn giấy tờ bạn muốn xác thực</p>
+                    <div class="document-selection">
+                        <div class="document-item" id="selectIDCard" tabindex="0">
+                            <div class="document-icon-wrapper"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M28.3333 28H3.66675C1.64404 28 0 26.356 0 24.3333V7.66675C0 5.64404 1.64404 4 3.66675 4H28.3333C30.356 4 32 5.64404 32 7.66675V24.3333C32 26.356 30.356 28 28.3333 28ZM3.66675 6C2.74805 6 2 6.74805 2 7.66675V24.3333C2 25.252 2.74805 26 3.66675 26H28.3333C29.252 26 30 25.252 30 24.3333V7.66675C30 6.74805 29.252 6 28.3333 6H3.66675Z" fill="white"></path><path d="M10.0002 15.9998C8.16284 15.9998 6.66699 14.5037 6.66699 12.6665C6.66699 10.8291 8.16284 9.33301 10.0002 9.33301C11.8376 9.33301 13.3335 10.8291 13.3335 12.6665C13.3335 14.5037 11.8376 15.9998 10.0002 15.9998Z" fill="white"></path><path d="M15 22.6665C14.448 22.6665 14 22.2185 14 21.6665V20.9998C14 20.0811 13.252 19.333 12.3333 19.333H7.66675C6.74805 19.333 6 20.0811 6 20.9998V21.6665C6 22.2185 5.552 22.6665 5 22.6665C4.448 22.6665 4 22.2185 4 21.6665V20.9998C4 18.9771 5.64404 17.333 7.66675 17.333H12.3333C14.356 17.333 16 18.9771 16 20.9998V21.6665C16 22.2185 15.552 22.6665 15 22.6665Z" fill="white"></path><path d="M27.0002 12H19.667C19.115 12 18.667 11.552 18.667 11C18.667 10.448 19.115 10 19.667 10H27.0002C27.5522 10 28.0002 10.448 28.0002 11C28.0002 11.552 27.5522 12 27.0002 12Z" fill="white"></path><path d="M27.0002 17.333H19.667C19.115 17.333 18.667 16.885 18.667 16.333C18.667 15.781 19.115 15.333 19.667 15.333H27.0002C27.5522 15.333 28.0002 15.781 28.0002 16.333C28.0002 16.885 27.5522 17.333 27.0002 17.333Z" fill="white"></path><path d="M27.0002 22.667H19.667C19.115 22.667 18.667 22.219 18.667 21.667C18.667 21.115 19.115 20.667 19.667 20.667H27.0002C27.5522 20.667 28.0002 21.115 28.0002 21.667C28.0002 22.219 27.5522 22.667 27.0002 22.667Z" fill="white"></path></svg></div>
+                            <p class="document-name" data-i18n="id_card">Chứng minh thư, Thẻ căn cước</p>
+                            <div class="arrow-icon"><svg width="8" height="13" viewBox="0 0 8 13" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L6.25 6.25L1 11.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+                        </div>
+                        <div class="document-item" id="selectPassport" tabindex="0">
+                            <div class="document-icon-wrapper"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M23.2856 1.78908C23.7258 2.22756 23.9999 2.81403 23.9999 3.4581V4.74962H24.0001V3.45829C24.0001 2.81413 23.7259 2.22758 23.2856 1.78908ZM27.2794 5.54191C27.7261 5.98909 28 6.58987 28 7.24962V28.4995C28 29.8783 26.804 30.9995 25.3333 30.9995H6.66668C5.90407 30.9995 5.21534 30.6981 4.72892 30.2155C5.21536 30.6982 5.90416 30.9997 6.66688 30.9997H25.3335C26.8042 30.9997 28.0002 29.8785 28.0002 28.4997V7.24981C28.0002 6.58997 27.7262 5.98911 27.2794 5.54191ZM3.7002 7.24981C3.7002 5.74797 4.94911 4.55824 6.4776 4.46547L20.6686 0.786678C20.896 0.732732 21.0982 0.702107 21.3306 0.699847C22.9084 0.684698 24.3001 1.90366 24.3001 3.45829V4.44981H25.3335C26.9514 4.44981 28.3001 5.68743 28.3002 7.24981V28.4997C28.3002 30.0622 26.9513 31.2997 25.3335 31.2997H6.66688C5.04897 31.2997 3.7002 30.0621 3.7002 28.4997V7.24981ZM22.3134 2.64158C22.0054 2.23605 21.5375 2.077 21.0802 2.18643L11.5795 4.74962H11.5786L21.08 2.18623C21.5374 2.07678 22.0054 2.23592 22.3134 2.64158ZM16.0001 7.80029C11.846 7.80029 8.4668 11.1795 8.4668 15.3336C8.4668 19.4876 11.846 22.8668 16.0001 22.8668C20.1541 22.8668 23.5334 19.4876 23.5334 15.3336C23.5334 11.1795 20.1541 7.80029 16.0001 7.80029Z" fill="white"></path></svg></div>
+                            <p class="document-name" data-i18n="passport">Hộ chiếu</p>
+                            <div class="arrow-icon"><svg width="8" height="13" viewBox="0 0 8 13" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L6.25 6.25L1 11.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+                        </div>
+                        <div class="document-item" id="selectDriverLicense" tabindex="0">
+                            <div class="document-icon-wrapper"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M13.8477 22.1685H3.53195C2.59904 22.1685 1.83943 21.4121 1.83943 20.4833V5.79307H30.0408V18.2893C30.0408 18.7949 30.4527 19.2051 30.9605 19.2051C31.4683 19.2051 31.8803 18.7949 31.8803 18.2893V3.5768C31.8803 1.63675 30.2967 0.0600586 28.3483 0.0600586H3.53195C1.58357 0.0599976 0 1.63676 0 3.5768V20.4833C0 22.4233 1.58358 24 3.53195 24H13.8477C14.3571 24 14.7675 23.5894 14.7675 23.0842C14.7675 22.5787 14.3555 22.1685 13.8477 22.1685ZM12.0003 10.621C12.0003 12.088 10.807 13.2762 9.33366 13.2762C7.86033 13.2762 6.66699 12.088 6.66699 10.621C6.66699 9.15401 7.86033 7.96581 9.33366 7.96581C10.807 7.96581 12.0003 9.15401 12.0003 10.621ZM9.33301 13.6079C8.49554 13.6079 7.3343 13.8733 6.36125 14.3908C5.42012 14.8913 4.33301 15.815 4.33301 17.2588V19.5821H14.333V17.2588C14.333 15.815 13.2459 14.8913 12.3048 14.3908C11.3317 13.8733 10.1705 13.6079 9.33301 13.6079Z" fill="white"></path><path d="M30.1295 23.4813L29.2587 22.6105L28.573 18.8389C28.414 17.9662 27.6559 17.3333 26.769 17.3333H19.8977C19.0108 17.3333 18.2527 17.9662 18.0937 18.8389L17.408 22.6105L16.5372 23.4813C16.1907 23.8274 16 24.288 16 24.778V27.4166C16 27.6696 16.2053 27.8749 16.4583 27.8749H30.2083C30.4613 27.8749 30.6667 27.6696 30.6667 27.4166V24.778C30.6667 24.288 30.476 23.8274 30.1295 23.4813Z" fill="white"></path></svg></div>
+                            <p class="document-name" data-i18n="driver_license">Bằng lái xe</p>
+                            <div class="arrow-icon"><svg width="8" height="13" viewBox="0 0 8 13" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L6.25 6.25L1 11.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+                        </div>
+                        <div class="document-item" id="selectOtherDocument" tabindex="0">
+                            <div class="document-icon-wrapper"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M14 25C14 25.5523 13.5523 26 13 26H7C6.44772 26 6 25.5523 6 25C6 24.4477 6.44772 24 7 24H13C13.5523 24 14 24.4477 14 25ZM22 19C22 19.5523 21.5523 20 21 20H7C6.44772 20 6 19.5523 6 19C6 18.4477 6.44772 18 7 18H21C21.5523 18 22 18.4477 22 19ZM22 13C22 13.5523 21.5523 14 21 14H7C6.44772 14 6 13.5523 6 13C6 12.4477 6.44772 12 7 12H21C21.5523 12 22 12.4477 22 13Z" fill="white"></path><path d="M4 6H24V30H4V6ZM25 4H3C2.448 4 2 4.448 2 5V31C2 31.552 2.448 32 3 32H25C25.552 32 26 31.552 26 31V5C26 4.448 25.552 4 25 4Z" fill="white"></path><path d="M30 29H28V2H5V0H29C29.552 0 30 0.448 30 1V29Z" fill="white"></path></svg></div>
+                            <p class="document-name" data-i18n="other_doc">Giấy tờ khác</p>
+                            <div class="arrow-icon"><svg width="8" height="13" viewBox="0 0 8 13" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L6.25 6.25L1 11.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+                        </div>
+                    </div>
+                    <div id="initStatusMessageContainer"></div>
+                </div>
+            </div>
+
+            <!-- Screen 2: Document Capture Guide -->
+            <div id="preCaptureGuideSection" class="hidden popup-card">
+                <div class="close-button" onclick="IDCaptureApp.cancelCapture()"><i class="fas fa-times"></i></div>
+                <h3 id="preCaptureTitle"></h3>
+                <p id="preCaptureInstruction" class="instruction-text"></p>
+                <div class="capture-steps">
+                    <div class="step">
+                        <img src="https://vaytieudung.github.io/shinhanbank/lib/cmt_mt.png" alt="Chụp mặt trước">
+                        <p>Bước 1: Chụp mặt trước</p>
+                    </div>
+                    <div class="step">
+                        <img src="https://vaytieudung.github.io/shinhanbank/lib/cmt_ms.png" alt="Chụp mặt sau">
+                        <p>Bước 2: Chụp mặt sau</p>
+                    </div>
+                </div>
+                <ul>
+                    <li data-i18n="guide_1_new">Đưa giấy tờ vào gần camera sao cho 4 góc của giấy tờ trùng với vùng giới hạn.</li>
+                    <li data-i18n="guide_2_new">Chụp rõ nét và đầy đủ thông tin trên giấy tờ.</li>
+                </ul>
+                <div class="guide-examples">
+                    <div class="guide-example incorrect">
+                        <div class="image-wrapper">
+                            <img id="guideBlurryImg" src="" alt="Ảnh chụp mờ">
+                            <span class="overlay-x">✖</span>
+                        </div>
+                        <p data-i18n="blurry_photo">Không chụp quá mờ</p>
+                    </div>
+                    <div class="guide-example incorrect">
+                        <div class="image-wrapper">
+                            <img id="guideMissingCornerImg" src="" alt="Ảnh mất góc">
+                            <span class="overlay-x">✖</span>
+                        </div>
+                        <p data-i18n="missing_corner_photo">Không chụp mất góc</p>
+                    </div>
+                    <div class="guide-example incorrect">
+                        <div class="image-wrapper">
+                            <img id="guideGlareImg" src="" alt="Ảnh loá sáng">
+                            <span class="overlay-x">✖</span>
+                        </div>
+                        <p data-i18n="glare_photo">Không chụp loá sáng</p>
+                    </div>
+                </div>
+                <div class="button-group">
+                    <button id="startCameraButton" class="btn btn-primary" data-i18n="start_capture" aria-label="Bắt đầu chụp ảnh">BẮT ĐẦU</button>
+                </div>
+            </div>
+
+            <!-- Screen 3: Document Capture -->
+            <div id="captureSection" class="hidden capture-section">
+                <div class="capture-box popup-card">
+                    <div>
+                        <h3 id="captureTitle"></h3>
+                        <div class="progress-indicator" style="width: 100%; margin: 1rem auto;">
+                            <p id="progressStepText" style="color: var(--text-color-dark); font-size: 0.875rem; margin-bottom: 0.5rem;">Bước 1/4</p>
+                            <div id="progressBarContainer" style="display: flex; gap: 0.25rem;">
+                                <div style="width: 25%; height: 4px; background-color: var(--primary-color); border-radius: 2px;"></div>
+                                <div style="width: 25%; height: 4px; background-color: #D3D3D3; border-radius: 2px;"></div>
+                                <div style="width: 25%; height: 4px; background-color: #D3D3D3; border-radius: 2px;"></div>
+                                <div style="width: 25%; height: 4px; background-color: #D3D3D3; border-radius: 2px;"></div>
+                            </div>
+                        </div>
+                        <p id="captureInstruction" class="instruction-text"></p>
+                    </div>
+                    <div class="capture-content-state" data-state="capturing">
+                        <div class="camera-frame" id="cameraFrame">
+                            <video id="cameraVideo" autoplay playsinline class="hidden"></video>
+                            <canvas id="cameraCanvasPreview"></canvas>
+                            <div class="overlay-focus"><div class="id-card-outline"><span></span></div></div>
+                        </div>
+                    </div>
+                    <div class="capture-content-state" data-state="loading">
+                        <div id="loader" class="loader" aria-label="Đang xử lý"></div>
+                        <p class="instruction-text" data-i18n="processing_image">Đang xử lý ảnh...</p>
+                    </div>
+                    <div class="capture-content-state" data-state="success">
+                        <i class="fas fa-check-circle fa-4x" style="color: var(--primary-color); margin: 1.5rem auto;"></i>
+                        <p class="h5" style="color: var(--text-color-dark);" data-i18n="capture_success">Chụp ảnh thành công!</p>
+                    </div>
+                    <div class="capture-content-state" data-state="error">
+                        <div class="camera-frame" id="cameraFrameError">
+                            <video id="cameraVideoError" autoplay playsinline class="hidden"></video>
+                            <canvas id="cameraCanvasPreviewError"></canvas>
+                            <div class="overlay-focus"><div class="id-card-outline"><span></span></div></div>
+                        </div>
+                    </div>
+                    <div>
+                        <p id="statusMessage" class="status-message" aria-live="polite"></p>
+                        <div id="errorMessage" class="error-message" role="alert"></div>
+                        <div class="button-group">
+                            <input type="file" id="uploadImage" accept="image/*" class="hidden" aria-label="Tải ảnh lên">
+                            <button id="uploadBtn" class="btn btn-white" aria-label="Tải ảnh lên từ thiết bị"><i class="fas fa-upload"></i><span data-i18n="upload_image" style="margin-left: 8px;">Tải ảnh</span></button>
+                            <button id="manualCaptureBtn" class="btn btn-white" aria-label="Chụp ảnh thủ công"><i class="fas fa-camera"></i><span data-i18n="manual_capture" style="margin-left: 8px;">Chụp ảnh</span></button>
+                            <button id="recaptureBtn" class="btn btn-secondary hidden" aria-label="Chụp lại"><i class="fas fa-redo"></i><span data-i18n="recapture" style="margin-left: 8px;">Chụp lại</span></button>
+                        </div>
+                        <div class="guide-link" style="margin-top: 1rem;">
+                            <a href="#" onclick="IDCaptureApp.showPreCaptureGuide(IDCaptureApp.state.currentCaptureType); return false;" style="color: var(--primary-color); text-decoration: underline;" data-i18n="guide_link">Hướng dẫn</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Screen 4: Face Capture Guide -->
+            <div id="faceGuideSection" class="hidden popup-card">
+                <h3 data-i18n="face_guide_title">Xác thực khuôn mặt</h3>
+                <video id="faceTutorialVideo" width="100%" loop autoplay muted playsinline src="https://vaytieudung.github.io/shinhanbank/lib/vietnamese-tutorial.mp4"></video>
+                <p class="instruction-text" data-i18n="face_guide_instruction">Vui lòng làm theo video hướng dẫn để có kết quả tốt nhất.</p>
+                <div class="button-group">
+                    <button id="startFaceCaptureBtn" class="btn btn-primary" data-i18n="start_face_capture">BẮT ĐẦU</button>
+                </div>
+            </div>
+
+            <!-- Screen 5: Face Capture -->
+            <div id="faceCaptureSection" class="hidden capture-section">
+                <div class="capture-box popup-card">
+                    <h3 id="faceCaptureTitle" data-i18n="face_capture_title">Xác thực khuôn mặt</h3>
+                    <div class="progress-indicator" style="width: 100%; margin: 1rem auto;">
+                        <p id="faceProgressStepText" style="color: var(--text-color-dark); font-size: 0.875rem; margin-bottom: 0.5rem;">Bước 3/4</p>
+                        <div id="faceProgressBarContainer" style="display: flex; gap: 0.25rem;">
+                            <div style="width: 25%; height: 4px; background-color: var(--primary-color); border-radius: 2px;"></div>
+                            <div style="width: 25%; height: 4px; background-color: var(--primary-color); border-radius: 2px;"></div>
+                            <div style="width: 25%; height: 4px; background-color: var(--primary-color); border-radius: 2px;"></div>
+                            <div style="width: 25%; height: 4px; background-color: #D3D3D3; border-radius: 2px;"></div>
+                        </div>
+                    </div>
+                    <div class="camera-frame face-camera-frame">
+                        <video id="faceVideo" autoplay playsinline muted></video>
+                        <canvas id="faceCanvas"></canvas>
+                        <div id="lottie-container"></div>
+                    </div>
+                    <p id="faceStatusMessage" class="status-message" style="margin-top: 1rem;"></p>
+                </div>
+            </div>
+
+            <!-- Screen 6: Final Confirmation -->
+            <div id="confirmSection" class="hidden">
+                <div class="confirm-box popup-card">
+                    <div>
+                        <h3 data-i18n="confirm_info">Xác nhận thông tin</h3>
+                        <p class="instruction-text" data-i18n="confirm_check_photos">Vui lòng kiểm tra lại hình ảnh đã chụp.</p>
+                    </div>
+                    <div class="confirm-previews">
+                        <img id="frontPreview" alt="Ảnh mặt trước">
+                        <img id="backPreview" alt="Ảnh mặt sau">
+                        <img id="facePreview" alt="Ảnh khuôn mặt">
+                    </div>
+                    <div class="button-group">
+                        <button id="redoFrontBtn" class="btn btn-secondary" data-i18n="recapture_front" aria-label="Chụp lại ảnh mặt trước">Chụp lại mặt trước</button>
+                        <button id="redoBackBtn" class="btn btn-secondary" data-i18n="recapture_back" aria-label="Chụp lại ảnh mặt sau">Chụp lại mặt sau</button>
+                        <button id="redoFaceBtn" class="btn btn-secondary" data-i18n="recapture_face" aria-label="Chụp lại khuôn mặt">Chụp lại khuôn mặt</button>
+                    </div>
+                    <div class="button-group">
+                        <button id="confirmFinalBtn" class="btn btn-primary w-100" aria-label="Xác nhận và hoàn tất">
+                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                            <span data-i18n="confirm_complete">Xác nhận và Hoàn tất</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <script type="module">
+        "use strict";
+
+        const IDCaptureApp = {
+            state: {
+                frontImageVerified: false,
+                backImageVerified: false,
+                faceImageVerified: false,
+                frontImageDataUrl: null,
+                backImageDataUrl: null,
+                faceImageDataUrl: null,
+                currentStream: null,
+                currentCaptureType: null,
+                isAutoCapturing: false,
+                autoCaptureTimeoutId: null,
+                autoCaptureMaxTimeoutId: null,
+                isCardDetected: false,
+                cameraCanvasPreview: null,
+                cameraCanvasContext: null,
+                animationFrameId: null,
+                tesseractWorker: null,
+                isTesseractInitializing: false,
+                isCvReady: false,
+                isFaceApiReady: false,
+                extractedInfo: null,
+                currentScreen: 'guideSection',
+                lastWarpedUrl: null
+            },
+            elements: {},
+            config: {
+                AUTO_CAPTURE_INTERVAL: 1000,
+                ERROR_MESSAGE_TIMEOUT: 5000,
+                MAX_CAPTURE_TIMEOUT: 30000,
+                IMAGE_UPLOAD_MAX_WIDTH: 1920,
+                GUIDE_IMAGES: {
+                    'idcard': { 
+                        blurry: 'https://vaytieudung.github.io/shinhanbank/lib/mo.png',
+                        missingCorner: 'https://vaytieudung.github.io/shinhanbank/lib/matgoc.png',
+                        glare: 'https://vaytieudung.github.io/shinhanbank/lib/loasang.png'
+                    }
+                },
+                OCR_LANGUAGES: {
+                    idcard: 'vie',
+                    passport: 'eng+vie',
+                    driverlicense: 'vie',
+                    other: 'vie'
+                },
+                i18n: {
+                    vi: {
+                        doc_auth: "Xác thực giấy tờ",
+                        choose_doc: "Chọn giấy tờ bạn muốn xác thực",
+                        id_card: "Chứng minh thư, Thẻ căn cước",
+                        passport: "Hộ chiếu",
+                        driver_license: "Bằng lái xe",
+                        other_doc: "Giấy tờ khác",
+                        guide_1_new: "Đưa giấy tờ vào gần camera sao cho 4 góc của giấy tờ trùng với vùng giới hạn.",
+                        guide_2_new: "Chụp rõ nét và đầy đủ thông tin trên giấy tờ.",
+                        blurry_photo: "Không chụp quá mờ",
+                        missing_corner_photo: "Không chụp mất góc",
+                        glare_photo: "Không chụp loá sáng",
+                        start_capture: "BẮT ĐẦU",
+                        guide_link: "Hướng dẫn",
+                        upload_image: "Tải ảnh",
+                        processing_image: "Đang xử lý ảnh...",
+                        capture_success: "Chụp ảnh thành công!",
+                        manual_capture: "Chụp ảnh",
+                        recapture: "Chụp lại",
+                        confirm_info: "Xác nhận thông tin",
+                        confirm_check_photos: "Vui lòng kiểm tra lại hình ảnh đã chụp.",
+                        recapture_front: "Chụp lại mặt trước",
+                        recapture_back: "Chụp lại mặt sau",
+                        recapture_face: "Chụp lại khuôn mặt",
+                        confirm_complete: "Xác nhận và Hoàn tất",
+                        ocr_loading: "Đang tải mô hình nhận dạng...",
+                        ocr_ready: "Hệ thống đã sẵn sàng!",
+                        ocr_error: "Lỗi tải mô hình OCR. Vui lòng thử lại.",
+                        resume_prompt: "Chúng tôi tìm thấy dữ liệu từ phiên làm việc trước. Bạn có muốn tiếp tục không?",
+                        no_network: "Không có kết nối mạng. Vui lòng kiểm tra lại.",
+                        face_guide_title: "Xác thực khuôn mặt",
+                        face_guide_instruction: "Vui lòng làm theo video hướng dẫn để có kết quả tốt nhất.",
+                        start_face_capture: "BẮT ĐẦU",
+                        face_capture_title: "Xác thực khuôn mặt",
+                        face_status_center: "Vui lòng giữ khuôn mặt ở trung tâm",
+                        face_status_stable: "Giữ yên...",
+                        face_status_success: "Xác thực thành công!"
+                    },
+                    en: {}
+                }
+            },
+            
+            async init() {
+                this.cacheDOMElements();
+                
+                const initPromises = [
+                    this.initOpenCV(),
+                    this.initTesseract(),
+                    this.initFaceAPI()
+                ];
+
+                try {
+                    await Promise.all(initPromises);
+                    console.log("eKYC App initialized with all features.");
+                } catch (error) {
+                    console.error("Initialization failed:", error);
+                    this.showPermanentError("Không thể khởi tạo ứng dụng. Vui lòng thử lại.");
+                }
+
+                if (!('mediaDevices' in navigator && 'getUserMedia' in navigator.mediaDevices)) {
+                    this.showPermanentError("Trình duyệt không hỗ trợ camera.");
+                    return;
+                }
+
+                this.addEventListeners();
+                this.updateLanguage(this.elements.languageSelect.value);
+                this.checkSavedProgress();
+            },
+
+            initOpenCV() {
+                return new Promise((resolve) => {
+                    if (typeof cv !== 'undefined' && cv.onRuntimeInitialized) {
+                        this.state.isCvReady = true;
+                        console.log("OpenCV already loaded.");
+                        resolve();
+                    } else {
+                        const script = document.querySelector('script[src*="opencv.js"]');
+                        script.onload = () => {
+                            cv.onRuntimeInitialized = () => {
+                                this.state.isCvReady = true;
+                                console.log("OpenCV initialized successfully.");
+                                resolve();
+                            };
+                        };
+                        script.onerror = () => {
+                            console.error("Failed to load OpenCV script.");
+                            this.showError("Không thể tải OpenCV.", false);
+                            resolve();
+                        };
+                    }
+                });
+            },
+
+            initTesseract() {
+                return new Promise(async (resolve) => {
+                    if (this.state.tesseractWorker || this.state.isTesseractInitializing) {
+                        resolve();
+                        return;
+                    }
+                    this.state.isTesseractInitializing = true;
+                    try {
+                        this.state.tesseractWorker = await Tesseract.createWorker('vie');
+                        console.log("Tesseract worker initialized.");
+                    } catch (error) {
+                        console.error("Failed to initialize Tesseract:", error);
+                        this.showError("Không thể tải Tesseract.", false);
+                    } finally {
+                        this.state.isTesseractInitializing = false;
+                        resolve();
+                    }
+                });
+            },
+
+            initFaceAPI() {
+                return new Promise(async (resolve) => {
+                    if (this.state.isFaceApiReady) {
+                        resolve();
+                        return;
+                    }
+                    try {
+                        await Promise.all([
+                            faceapi.nets.tinyFaceDetector.loadFromUri('https://vaytieudung.github.io/shinhanbank/models'),
+                            faceapi.nets.faceLandmark68Net.loadFromUri('https://vaytieudung.github.io/shinhanbank/models'),
+                            faceapi.nets.faceRecognitionNet.loadFromUri('https://vaytieudung.github.io/shinhanbank/models'),
+                            faceapi.nets.faceExpressionNet.loadFromUri('https://vaytieudung.github.io/shinhanbank/models')
+                        ]);
+                        this.state.isFaceApiReady = true;
+                        console.log("FaceAPI models loaded successfully.");
+                    } catch (error) {
+                        console.error("Failed to load FaceAPI models:", error);
+                        this.showError("Không thể tải FaceAPI.", false);
+                    } finally {
+                        resolve();
+                    }
+                });
+            },
+
+            cacheDOMElements() {
+                const ids = ['guideSection', 'preCaptureGuideSection', 'captureSection', 'cameraFrame', 'cameraVideo', 'statusMessage', 'loader', 'errorMessage', 'manualCaptureBtn', 'recaptureBtn', 'captureTitle', 'captureInstruction', 'backButton', 'confirmSection', 'frontPreview', 'backPreview', 'facePreview', 'redoFaceBtn', 'confirmFinalBtn', 'cameraCanvasPreview', 'startCameraButton', 'languageSelect', 'initStatusMessageContainer', 'preCaptureTitle', 'preCaptureInstruction', 'uploadImage', 'uploadBtn', 'guideBlurryImg', 'guideMissingCornerImg', 'guideGlareImg', 'faceGuideSection', 'faceCaptureSection', 'startFaceCaptureBtn', 'faceVideo', 'faceCanvas', 'faceStatusMessage', 'lottie-container'];
+                ids.forEach(id => {
+                    if (document.getElementById(id)) this.elements[id] = document.getElementById(id);
+                });
+                this.elements.selectIDCard = document.getElementById('selectIDCard');
+                this.elements.selectPassport = document.getElementById('selectPassport');
+                this.elements.selectDriverLicense = document.getElementById('selectDriverLicense');
+                this.elements.selectOtherDocument = document.getElementById('selectOtherDocument');
+                this.state.cameraCanvasPreview = this.elements.cameraCanvasPreview;
+                if (this.state.cameraCanvasPreview) {
+                    this.state.cameraCanvasContext = this.state.cameraCanvasPreview.getContext('2d', { willReadFrequently: true });
+                }
+            },
+
+            addEventListeners() {
+                this.elements.selectIDCard?.addEventListener('click', () => this.showPreCaptureGuide('idcard'));
+                this.elements.selectPassport?.addEventListener('click', () => this.showPreCaptureGuide('passport'));
+                this.elements.selectDriverLicense?.addEventListener('click', () => this.showPreCaptureGuide('driverlicense'));
+                this.elements.selectOtherDocument?.addEventListener('click', () => this.showPreCaptureGuide('other'));
+                this.elements.startCameraButton?.addEventListener('click', () => this.startCameraFromGuide());
+                this.elements.manualCaptureBtn?.addEventListener('click', () => this.triggerCapture(false));
+                this.elements.recaptureBtn?.addEventListener('click', () => this.startCaptureProcess(this.state.currentCaptureType));
+                this.elements.backButton?.addEventListener('click', () => this.handleBackButtonClick());
+                this.elements.redoFrontBtn?.addEventListener('click', () => this.retakePhoto('front'));
+                this.elements.redoBackBtn?.addEventListener('click', () => this.retakePhoto('back'));
+                this.elements.redoFaceBtn?.addEventListener('click', () => this.navigateTo('faceGuideSection'));
+                this.elements.confirmFinalBtn?.addEventListener('click', () => this.submitFinalData());
+                this.elements.languageSelect?.addEventListener('change', (e) => this.updateLanguage(e.target.value));
+                this.elements.startFaceCaptureBtn?.addEventListener('click', () => this.startFaceCapture());
+                
+                this.elements.uploadBtn?.addEventListener('click', () => this.elements.uploadImage.click());
+                this.elements.uploadImage?.addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (event) => this.handleImageVerification(event.target.result);
+                        reader.readAsDataURL(file);
+                    }
+                });
+
+                document.querySelectorAll('.document-item').forEach(item => {
+                    item.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            item.click();
+                        }
+                    });
+                });
+            },
+
+            async showPreCaptureGuide(type) {
+                if (this.state.isTesseractInitializing || !this.state.isCvReady) {
+                    this.elements.initStatusMessageContainer.textContent = "Đang chuẩn bị... Vui lòng đợi.";
+                    await new Promise(r => setTimeout(r, 1000));
+                    this.elements.initStatusMessageContainer.textContent = "";
+                }
+
+                this.state.currentCaptureType = type;
+                this.navigateTo('preCaptureGuideSection');
+
+                const lang = this.elements.languageSelect.value;
+                const titles = {
+                    idcard: lang === 'vi' ? 'Hướng dẫn chụp CMND/CCCD' : 'ID Card Capture Guide',
+                    passport: lang === 'vi' ? 'Hướng dẫn chụp Hộ chiếu' : 'Passport Capture Guide',
+                    driverlicense: lang === 'vi' ? 'Hướng dẫn chụp Bằng lái xe' : 'Driver’s License Capture Guide',
+                    other: lang === 'vi' ? 'Hướng dẫn chụp Giấy tờ khác' : 'Other Document Capture Guide'
+                };
+                this.elements.preCaptureTitle.textContent = titles[type];
+                
+                this.elements.guideBlurryImg.src = this.config.GUIDE_IMAGES[type]?.blurry || 'https://placehold.co/120x75/cccccc/FFFFFF?text=N/A';
+                this.elements.guideMissingCornerImg.src = this.config.GUIDE_IMAGES[type]?.missingCorner || 'https://placehold.co/120x75/cccccc/FFFFFF?text=N/A';
+                this.elements.guideGlareImg.src = this.config.GUIDE_IMAGES[type]?.glare || 'https://placehold.co/120x75/cccccc/FFFFFF?text=N/A';
+
+                this.updateLanguage(lang);
+                this.elements.startCameraButton.focus();
+            },
+
+            startCameraFromGuide() {
+                this.navigateTo('captureSection');
+                this.startCaptureProcess(this.state.currentCaptureType);
+            },
+
+            async startCaptureProcess(type) {
+                if (!this.state.isCvReady) {
+                    this.showError("Thư viện xử lý ảnh chưa sẵn sàng, vui lòng đợi.", false);
+                    return;
+                }
+                this.state.currentCaptureType = type;
+                this.state.isCardDetected = false;
+                this.resetUIForCapture(type);
+                await this.stopCamera();
+
+                try {
+                    const constraints = { video: { facingMode: { ideal: 'environment' }, width: { ideal: 960 }, height: { ideal: 540 } } };
+                    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                    this.state.currentStream = stream;
+                    this.elements.cameraVideo.srcObject = stream;
+                    await this.elements.cameraVideo.play();
+                    this.elements.cameraVideo.onloadedmetadata = () => {
+                        const frame = this.elements.cameraFrame;
+                        this.state.cameraCanvasPreview.width = frame.offsetWidth;
+                        this.state.cameraCanvasPreview.height = frame.offsetHeight;
+                        this.drawVideoToCanvas();
+                        this.autoCaptureLoop();
+                    };
+                } catch (err) {
+                    console.error("Camera access error:", err);
+                    let message = "Không thể truy cập camera. Vui lòng thử lại.";
+                    if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+                        message = "Quyền truy cập camera bị từ chối. Vui lòng cấp quyền trong cài đặt trình duyệt.";
+                    } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+                        message = "Không tìm thấy camera phù hợp. Vui lòng kiểm tra thiết bị của bạn.";
+                    }
+                    await this.showPermanentError(message);
+                }
+            },
+
+            drawVideoToCanvas() {
+                if (!this.state.currentStream) return;
+                this.state.cameraCanvasContext.drawImage(this.elements.cameraVideo, 0, 0, this.state.cameraCanvasPreview.width, this.state.cameraCanvasPreview.height);
+                this.state.animationFrameId = requestAnimationFrame(() => this.drawVideoToCanvas());
+            },
+
+            autoCaptureLoop() {
+                if (!this.state.isAutoCapturing) {
+                    this.state.isAutoCapturing = true;
+                    this.state.autoCaptureTimeoutId = setInterval(() => this.detectDocument(), this.config.AUTO_CAPTURE_INTERVAL);
+                    this.state.autoCaptureMaxTimeoutId = setTimeout(() => {
+                        this.stopAutoCapture();
+                        this.showError("Không thể phát hiện giấy tờ trong thời gian cho phép.", true);
+                    }, this.config.MAX_CAPTURE_TIMEOUT);
+                }
+            },
+
+            stopAutoCapture() {
+                clearInterval(this.state.autoCaptureTimeoutId);
+                clearTimeout(this.state.autoCaptureMaxTimeoutId);
+                this.state.isAutoCapturing = false;
+            },
+
+            async detectDocument() {
+                if (!this.state.isCvReady || !this.state.currentStream) return;
+                const mat = cv.imread(this.state.cameraCanvasPreview);
+                const gray = new cv.Mat();
+                cv.cvtColor(mat, gray, cv.COLOR_RGBA2GRAY);
+                const edges = new cv.Mat();
+                cv.Canny(gray, edges, 100, 200);
+
+                const contours = new cv.MatVector();
+                const hierarchy = new cv.Mat();
+                cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+                let maxArea = 0;
+                let maxContourIdx = -1;
+                for (let i = 0; i < contours.size(); i++) {
+                    const contour = contours.get(i);
+                    const area = cv.contourArea(contour);
+                    if (area > maxArea) {
+                        maxArea = area;
+                        maxContourIdx = i;
+                    }
+                }
+
+                if (maxArea > 5000) {
+                    this.state.isCardDetected = true;
+                    const contour = contours.get(maxContourIdx);
+                    const perimeter = cv.arcLength(contour, true);
+                    const approx = new cv.Mat();
+                    cv.approxPolyDP(contour, approx, 0.02 * perimeter, true);
+
+                    if (approx.rows === 4) {
+                        this.elements.cameraFrame.classList.add('ready-to-capture');
+                        const warpedImage = this.warpPerspective(mat, approx);
+                        const imageDataUrl = this.matToDataUrl(warpedImage);
+                        this.stopAutoCapture();
+                        this.handleImageVerification(imageDataUrl);
+                    }
+                    approx.delete();
+                }
+
+                mat.delete();
+                gray.delete();
+                edges.delete();
+                contours.delete();
+                hierarchy.delete();
+            },
+
+            warpPerspective(srcMat, corners) {
+                const srcPts = cv.matFromArray(4, 1, cv.CV_32FC2, [
+                    corners.data32F[0], corners.data32F[1],
+                    corners.data32F[2], corners.data32F[3],
+                    corners.data32F[4], corners.data32F[5],
+                    corners.data32F[6], corners.data32F[7]
+                ]);
+                const dstPts = cv.matFromArray(4, 1, cv.CV_32FC2, [0, 0, 300, 0, 300, 200, 0, 200]);
+                const M = cv.getPerspectiveTransform(srcPts, dstPts);
+                const dstMat = new cv.Mat();
+                cv.warpPerspective(srcMat, dstMat, M, new cv.Size(300, 200));
+                srcPts.delete();
+                dstPts.delete();
+                M.delete();
+                return dstMat;
+            },
+
+            matToDataUrl(mat) {
+                const canvas = document.createElement('canvas');
+                canvas.width = mat.cols;
+                canvas.height = mat.rows;
+                cv.imshow(canvas, mat);
+                const dataUrl = canvas.toDataURL('image/jpeg');
+                mat.delete();
+                return dataUrl;
+            },
+
+            async handleImageVerification(imageDataUrl) {
+                this.toggleUIState('loading');
+                try {
+                    const img = new Image();
+                    img.src = imageDataUrl;
+                    await new Promise(resolve => img.onload = resolve);
+
+                    this.state.lastWarpedUrl = imageDataUrl;
+                    await this.handleVerificationSuccess(imageDataUrl);
+                } catch (error) {
+                    console.error("Image verification failed:", error);
+                    this.toggleUIState('error');
+                    this.showError("Không thể xác minh ảnh. Vui lòng thử lại.", true);
+                }
+            },
+
+            async handleVerificationSuccess(imageDataUrl) {
+                this.state.isAutoCapturing = false;
+                this.stopCamera();
+                const type = this.state.currentCaptureType;
+                
+                if (type === 'idcard' && !this.state.frontImageVerified) {
+                    this.state.frontImageDataUrl = imageDataUrl;
+                    this.state.frontImageVerified = true;
+                    this.toggleUIState('success');
+                    setTimeout(() => this.startCaptureProcess('idcard'), 1500);
+                } else {
+                    if (type === 'idcard') {
+                        this.state.backImageDataUrl = imageDataUrl;
+                        this.state.backImageVerified = true;
+                    } else {
+                        this.state.frontImageDataUrl = imageDataUrl;
+                        this.state.frontImageVerified = true;
+                    }
+                    this.toggleUIState('success');
+                    setTimeout(() => this.navigateTo('faceGuideSection'), 1000);
+                }
+                this.saveProgress();
+                this.triggerHapticFeedback();
+            },
+
+            async startFaceCapture() {
+                if (!this.state.isFaceApiReady) {
+                    this.showError("Chức năng nhận diện khuôn mặt chưa sẵn sàng.", false);
+                    return;
+                }
+                this.navigateTo('faceCaptureSection');
+                await this.stopCamera();
+
+                const video = this.elements.faceVideo;
+                const canvas = this.elements.faceCanvas;
+                const statusMsg = this.elements.faceStatusMessage;
+
+                const lottieContainer = this.elements.lottieContainer;
+                lottieContainer.innerHTML = '';
+                const anim = lottie.loadAnimation({
+                    container: lottieContainer,
+                    renderer: 'svg',
+                    loop: true,
+                    autoplay: true,
+                    path: 'https://vaytieudung.github.io/shinhanbank/lib/web-oval.json'
+                });
+
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+                    this.state.currentStream = stream;
+                    video.srcObject = stream;
+                    
+                    video.onplay = () => {
+                        const displaySize = { width: video.clientWidth, height: video.clientHeight };
+                        faceapi.matchDimensions(canvas, displaySize);
+
+                        const detectFace = async () => {
+                            if (!this.state.currentStream) return;
+                            const detections = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceExpressions();
+                            
+                            if (detections) {
+                                const resizedDetections = faceapi.resizeResults(detections, displaySize);
+                                const { width, height, x, y } = resizedDetections.detection.box;
+                                const brightness = this.calculateBrightness(video);
+                                if (width > 100 && height > 100 && x > 50 && y > 50 && brightness > 50) {
+                                    if (detections.expressions.happy > 0.5 || detections.expressions.sad > 0.5) {
+                                        statusMsg.textContent = "Vui lòng giữ khuôn mặt tự nhiên.";
+                                    } else {
+                                        statusMsg.textContent = this.config.i18n.vi.face_status_stable;
+                                        setTimeout(() => this.captureSelfie(), 500);
+                                    }
+                                } else {
+                                    statusMsg.textContent = this.config.i18n.vi.face_status_center;
+                                }
+                            } else {
+                                statusMsg.textContent = this.config.i18n.vi.face_status_center;
+                            }
+                            
+                            if (this.state.currentStream) {
+                                requestAnimationFrame(detectFace);
+                            }
+                        };
+                        detectFace();
+                    };
+                } catch (err) {
+                    console.error("Face camera error:", err);
+                    this.showError("Không thể truy cập camera trước.", false);
+                }
+            },
+
+            calculateBrightness(video) {
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0);
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+                let totalBrightness = 0;
+                for (let i = 0; i < data.length; i += 4) {
+                    totalBrightness += (data[i] + data[i + 1] + data[i + 2]) / 3;
+                }
+                return totalBrightness / (data.length / 4);
+            },
+
+            captureSelfie() {
+                if (!this.state.currentStream) return;
+                const video = this.elements.faceVideo;
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const context = canvas.getContext('2d');
+                context.translate(canvas.width, 0);
+                context.scale(-1, 1);
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                this.state.faceImageDataUrl = canvas.toDataURL('image/jpeg');
+                this.state.faceImageVerified = true;
+                this.elements.faceStatusMessage.textContent = this.config.i18n.vi.face_status_success;
+                this.elements.faceStatusMessage.style.color = 'var(--primary-color)';
+
+                this.stopCamera();
+                this.saveProgress();
+                setTimeout(() => this.showConfirmationScreen(), 1000);
+            },
+
+            showConfirmationScreen() {
+                this.stopCamera();
+                this.navigateTo('confirmSection');
+                
+                this.elements.frontPreview.src = this.state.frontImageDataUrl || '';
+                this.elements.frontPreview.style.display = this.state.frontImageDataUrl ? 'block' : 'none';
+                
+                this.elements.backPreview.src = this.state.backImageDataUrl || '';
+                this.elements.backPreview.style.display = this.state.backImageDataUrl ? 'block' : 'none';
+
+                this.elements.facePreview.src = this.state.faceImageDataUrl || '';
+                this.elements.facePreview.style.display = this.state.faceImageDataUrl ? 'block' : 'none';
+
+                this.elements.redoBackBtn.style.display = this.state.currentCaptureType === 'idcard' ? 'block' : 'none';
+
+                this.elements.redoFrontBtn.focus();
+            },
+
+            async submitFinalData() {
+                if (this.state.frontImageVerified && (this.state.currentCaptureType !== 'idcard' || this.state.backImageVerified) && this.state.faceImageVerified) {
+                    alert("Xác thực thành công!");
+                    this.navigateTo('guideSection');
+                    this.resetState();
+                } else {
+                    this.showError("Vui lòng hoàn thành tất cả các bước xác thực.", false);
+                }
+            },
+
+            resetState() {
+                this.state.frontImageVerified = false;
+                this.state.backImageVerified = false;
+                this.state.faceImageVerified = false;
+                this.state.frontImageDataUrl = null;
+                this.state.backImageDataUrl = null;
+                this.state.faceImageDataUrl = null;
+                localStorage.clear();
+            },
+
+            retakePhoto(side) {
+                if (side === 'front') {
+                    this.state.frontImageVerified = false;
+                    this.state.frontImageDataUrl = null;
+                    this.startCaptureProcess(this.state.currentCaptureType);
+                } else if (side === 'back') {
+                    this.state.backImageVerified = false;
+                    this.state.backImageDataUrl = null;
+                    this.startCaptureProcess(this.state.currentCaptureType);
+                }
+            },
+
+            async stopCamera() {
+                if (this.state.currentStream) {
+                    this.state.currentStream.getTracks().forEach(track => track.stop());
+                    this.state.currentStream = null;
+                }
+                if (this.state.animationFrameId) {
+                    cancelAnimationFrame(this.state.animationFrameId);
+                    this.state.animationFrameId = null;
+                }
+                this.stopAutoCapture();
+            },
+
+            toggleUIState(state) {
+                this.elements.captureSection.className = `capture-section state-${state}`;
+            },
+
+            resetUIForCapture(type) {
+                this.toggleUIState('capturing');
+                this.elements.statusMessage.textContent = '';
+                this.elements.errorMessage.classList.remove('visible');
+                this.elements.recaptureBtn.classList.add('hidden');
+                this.elements.captureTitle.textContent = type === 'idcard' && !this.state.frontImageVerified ? 'Chụp mặt trước' : 'Chụp mặt sau';
+                this.elements.captureInstruction.textContent = 'Đưa giấy tờ vào khung hình.';
+            },
+
+            showError(message, isTemporary = true) {
+                this.elements.errorMessage.textContent = message;
+                this.elements.errorMessage.classList.add('visible');
+                if (isTemporary) {
+                    setTimeout(() => this.elements.errorMessage.classList.remove('visible'), this.config.ERROR_MESSAGE_TIMEOUT);
+                }
+            },
+
+            async showPermanentError(message) {
+                this.showError(message, false);
+                await this.stopCamera();
+                this.navigateTo('guideSection');
+            },
+
+            saveProgress() {
+                const progress = {
+                    frontImageVerified: this.state.frontImageVerified,
+                    backImageVerified: this.state.backImageVerified,
+                    faceImageVerified: this.state.faceImageVerified,
+                    frontImageDataUrl: this.state.frontImageDataUrl,
+                    backImageDataUrl: this.state.backImageDataUrl,
+                    faceImageDataUrl: this.state.faceImageDataUrl,
+                    currentCaptureType: this.state.currentCaptureType,
+                    currentScreen: this.state.currentScreen
+                };
+                localStorage.setItem('eKYCProgress', JSON.stringify(progress));
+            },
+
+            checkSavedProgress() {
+                const saved = localStorage.getItem('eKYCProgress');
+                if (saved) {
+                    const progress = JSON.parse(saved);
+                    if (confirm(this.config.i18n.vi.resume_prompt)) {
+                        Object.assign(this.state, progress);
+                        this.navigateTo(this.state.currentScreen);
+                        if (this.state.frontImageVerified && this.state.backImageVerified) {
+                            this.showConfirmationScreen();
+                        }
+                    } else {
+                        localStorage.clear();
+                    }
+                }
+            },
+
+            updateLanguage(lang) {
+                document.querySelectorAll('[data-i18n]').forEach(elem => {
+                    const key = elem.getAttribute('data-i18n');
+                    elem.textContent = this.config.i18n[lang][key] || elem.textContent;
+                });
+            },
+
+            triggerHapticFeedback() {
+                if ('vibrate' in navigator) {
+                    navigator.vibrate(200);
+                }
+            },
+
+            triggerCapture(isManual) {
+                if (isManual && this.state.isCardDetected) {
+                    const imageDataUrl = this.state.lastWarpedUrl;
+                    if (imageDataUrl) {
+                        this.stopAutoCapture();
+                        this.handleImageVerification(imageDataUrl);
+                    }
+                }
+            },
+
+            navigateTo(screenId) {
+                this.state.currentScreen = screenId;
+                ['guideSection', 'preCaptureGuideSection', 'captureSection', 'faceGuideSection', 'faceCaptureSection', 'confirmSection'].forEach(id => {
+                    this.elements[id]?.classList.toggle('hidden', id !== screenId);
+                });
+                this.elements.backButton.classList.toggle('hidden', screenId === 'guideSection');
+                this.saveProgress();
+            },
+
+            handleBackButtonClick() {
+                this.stopCamera();
+                switch (this.state.currentScreen) {
+                    case 'preCaptureGuideSection': 
+                        this.navigateTo('guideSection');
+                        break;
+                    case 'captureSection':
+                        this.navigateTo('preCaptureGuideSection');
+                        break;
+                    case 'faceGuideSection':
+                        this.navigateTo('captureSection');
+                        this.startCaptureProcess(this.state.currentCaptureType);
+                        break;
+                    case 'faceCaptureSection':
+                        this.navigateTo('faceGuideSection');
+                        break;
+                    case 'confirmSection':
+                        this.navigateTo('faceGuideSection');
+                        break;
+                }
+            },
+
+            cancelCapture() {
+                this.stopCamera();
+                this.navigateTo('guideSection');
+                this.resetState();
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => IDCaptureApp.init());
+        window.IDCaptureApp = IDCaptureApp;
+    </script>
+</body>
+</html>

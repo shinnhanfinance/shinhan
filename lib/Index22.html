@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VNPT eKYC - Xác thực giấy tờ</title>
+    <!-- Thêm Style -->
+    <style>
+        :root {
+            --primary-color: #18D696;
+            --secondary-color: #122F41;
+            --text-color-main: #FFFFFF;
+            --text-color-dark: #142730;
+            --error-color: #D9534F;
+            --border-radius: 10px;
+            --shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f9;
+            margin: 0;
+            padding: 0;
+        }
+
+        .app-header {
+            background-color: var(--secondary-color);
+            padding: 10px;
+            text-align: center;
+            color: var(--text-color-main);
+        }
+
+        .app-header img {
+            width: 150px;
+        }
+
+        .main-content-wrapper {
+            padding: 20px;
+            text-align: center;
+        }
+
+        video {
+            width: 90%;
+            margin: 10px auto;
+            border: 1px solid #ccc;
+            border-radius: var(--border-radius);
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: var(--border-radius);
+            margin: 20px 0;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .alert-info {
+            background-color: var(--primary-color);
+            color: var(--text-color-main);
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="app-header">
+        <img src="lib/logo_ekyc.svg" alt="VNPT Logo">
+        <h1>VNPT eKYC</h1>
+    </header>
+
+    <!-- Nội dung chính -->
+    <main class="main-content-wrapper">
+        <!-- Thông báo -->
+        <div id="notification" class="alert alert-info hidden">
+            <i class="fas fa-info-circle"></i> <span id="notification-message">Thông báo sẽ hiển thị tại đây.</span>
+        </div>
+
+        <!-- Video hướng dẫn -->
+        <section id="tutorial-section">
+            <h2>Hướng dẫn sử dụng</h2>
+            <video id="vietnamese-tutorial" controls>
+                <source src="lib/vietnamese-tutorial.mp4" type="video/mp4">
+                Trình duyệt của bạn không hỗ trợ video.
+            </video>
+            <video id="english-tutorial" controls>
+                <source src="lib/english-tutorial.mp4" type="video/mp4">
+                Trình duyệt của bạn không hỗ trợ video.
+            </video>
+        </section>
+
+        <!-- Quét mã QR -->
+        <section id="qr-section">
+            <h3>Quét mã QR</h3>
+            <img src="lib/qr-code.png" alt="QR Code">
+        </section>
+
+        <!-- Quy trình eKYC -->
+        <section id="workflow-section">
+            <h3>Quy trình eKYC</h3>
+            <img src="lib/bg-vnpt.svg" alt="Background">
+        </section>
+    </main>
+
+    <!-- JavaScript -->
+    <script src="lib/VNPTBrowserSDKAppV4.0.0.js"></script>
+    <script src="lib/jsQR.js"></script>
+    <script src="lib/eKYCWorkflow.js"></script>
+    <script>
+        // Hiển thị thông báo
+        function showNotification(message, type = 'info') {
+            const notification = document.getElementById('notification');
+            const notificationMessage = document.getElementById('notification-message');
+            notification.className = `alert alert-${type}`;
+            notificationMessage.textContent = message;
+            notification.classList.remove('hidden');
+            setTimeout(() => notification.classList.add('hidden'), 5000); // Ẩn sau 5 giây
+        }
+
+        // Kích hoạt SDK
+        document.addEventListener("DOMContentLoaded", () => {
+            console.log("VNPT eKYC loaded!");
+
+            // Khởi tạo SDK
+            VNPTBrowserSDKApp.init();
+
+            // Quét mã QR
+            const qrCode = document.querySelector("#qr-section img");
+            qrCode.addEventListener("click", () => {
+                console.log("Quét mã QR...");
+                showNotification("Quét mã QR thành công!");
+            });
+        });
+    </script>
+</body>
+</html>
